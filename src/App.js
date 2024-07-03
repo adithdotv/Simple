@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import Web3 from 'web3';
+import Web3, { NoContractAddressFoundError } from 'web3';
 
 const web3 = new Web3('http://127.0.0.1:8545/');
 
@@ -48,13 +48,18 @@ function App() {
 
   async function sendTransaction () {
     try {
-      const receipt = await web3.eth.sendTransaction({
-        from: account.address,
+      const nonce = await web3.eth.getTransactionCount(account.address, 'pending');
+
+      const transaction = {
         to: recipient,
-        value: web3.utils.toWei(amount, 'ether'),
+        value: web3.utils.toWei('1', 'ether'),
         gas: 21000,
-        gasPrice: web3.utils.toWei('20', 'gwei')
-      });
+        gasPrice: web3.utils.toWei('20', 'gwei'),
+        nonce: nonce
+      };
+
+      const signedTransaction = await web3.eth.accounts.signTransaction(transaction, account.privateKey);
+      const receipt = await web3.eth.sendSignedTransaction(signedTransaction.rawTransaction);
 
       console.log("Transaction receipt: ", receipt);
       setRecipient('');
