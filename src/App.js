@@ -1,21 +1,40 @@
 import { useState, useEffect } from 'react';
-import Web3, { NoContractAddressFoundError } from 'web3';
+import Web3 from 'web3';
+import CryptoJS from 'crypto-js';
+
 
 const web3 = new Web3('http://127.0.0.1:8545/');
 
 function App() {
   const [account, setAccount] = useState(null);
   const [balance, setBalance] = useState('');
-  const [privateKey, setPrivateKey] = useState('');
   const [recipient, setRecipient] = useState('');
-  const [error, setError] = useState('');
   const [amount, setAmount] = useState('')
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (password) {
+      const encryptedAccount = localStorage.getItem('account');
+      if (encryptedAccount) {
+        const decryptedAccount = decrypt(encryptedAccount, password);
+        if (decryptedAccount) {
+          const acc = JSON.parse(decryptedAccount);
+          setAccount(acc);
+        } else {
+          setError("Incorrect password. Unable to decrypt the account.");
+        }
+      }
+    }
+  }, [password]);
 
   useEffect(() => {
     if (account) {
       getBalance();
+      const encryptedAccount = encrypt(JSON.stringify(account), password);
+      localStorage.setItem('account', encryptedAccount);
     }
-  }, [account]);
+  }, [account, password]);
 
   function createWallet() {
     const acc = web3.eth.accounts.create();
@@ -23,17 +42,17 @@ function App() {
     console.log(acc); // Log the newly created account
   }
 
-  function importWallet() {
-    try {
-      const acc = web3.eth.accounts.privateKeyToAccount(privateKey);
-      setAccount(acc);
-      console.log(acc); // Log the imported account
-      setError('')
-    } catch (error) {
-      console.error("Error importing wallet: ", error);
-      setError("Invalid private key. Please try again.");
-    }
-  }
+  // function importWallet() {
+  //   try {
+  //     const acc = web3.eth.accounts.privateKeyToAccount(privateKey);
+  //     setAccount(acc);
+  //     console.log(acc); // Log the imported account
+  //     setError('')
+  //   } catch (error) {
+  //     console.error("Error importing wallet: ", error);
+  //     setError("Invalid private key. Please try again.");
+  //   }
+  // }
 
   async function getBalance() {
     try {
@@ -67,6 +86,20 @@ function App() {
     } catch (error) {
       console.error("Error sending transaction: ", error);
       setError("Transaction failed. Please check the recipient address and your balance.");
+    }
+  }
+
+  function encrypt(data, key) {
+    return CryptoJS.AES.encrypt(data, key).toString();
+  }
+
+  function decrypt(data, key) {
+    try {
+      const bytes = CryptoJS.AES.decrypt(data, key);
+      return bytes.toString(CryptoJS.enc.Utf8);
+    } catch (error) {
+      console.error("Error decrypting data: ", error);
+      return null;
     }
   }
 
@@ -112,17 +145,17 @@ function App() {
             Create Wallet
           </button>
           <div className="flex flex-col items-center">
-            <input 
-              type="text" 
-              placeholder="Enter Private Key" 
-              value={privateKey} 
-              onChange={(e) => setPrivateKey(e.target.value)} 
-              className="px-4 py-2 mb-2 border border-gray-300 rounded-lg focus:outline-none"
-            />
+              <input 
+                  type="password" 
+                  placeholder="Enter Password" 
+                  value={password} 
+                  onChange={(e) => setPassword(e.target.value)} 
+                  className="px-4 py-2 mb-2 border border-gray-300 rounded-lg focus:outline-none"
+                />
             <button 
-              onClick={importWallet} 
-              className={`px-6 py-3 ${privateKey  ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-400 cursor-not-allowed'} text-white rounded-full font-semibold shadow-md focus:outline-none`}
-              disabled={!privateKey}
+              // onClick={importWallet} 
+              // className={`px-6 py-3 ${privateKey  ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-400 cursor-not-allowed'} text-white rounded-full font-semibold shadow-md focus:outline-none`}
+              // disabled={!privateKey}
             >
               Import Wallet
             </button>
