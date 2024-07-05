@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Web3 from 'web3';
 import CryptoJS from 'crypto-js';
+import PasswordModal from './PasswordModal';
 
 
 const web3 = new Web3('http://127.0.0.1:8545/');
@@ -11,7 +12,10 @@ function App() {
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('')
   const [password, setPassword] = useState('');
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [error, setError] = useState('');
+  const [modalTitle, setModalTitle] = useState('');
+  const [action, setAction] = useState('');
 
   useEffect(() => {
     if (password) {
@@ -36,23 +40,46 @@ function App() {
     }
   }, [account, password]);
 
+  function openPasswordModal(title, action) {
+    setModalTitle(title);
+    setAction(action);
+    setIsPasswordModalOpen(true);
+  }
+
+  function closePasswordModal() {
+    setIsPasswordModalOpen(false);
+  }
+
+  function handlePasswordSubmit(password) {
+    setPassword(password);
+    if (action === 'create') {
+      createWallet(password);
+    } else if (action === 'import') {
+      importWallet(password);
+    }
+  }
+
   function createWallet() {
     const acc = web3.eth.accounts.create();
     setAccount(acc);
     console.log(acc); // Log the newly created account
   }
 
-  // function importWallet() {
-  //   try {
-  //     const acc = web3.eth.accounts.privateKeyToAccount(privateKey);
-  //     setAccount(acc);
-  //     console.log(acc); // Log the imported account
-  //     setError('')
-  //   } catch (error) {
-  //     console.error("Error importing wallet: ", error);
-  //     setError("Invalid private key. Please try again.");
-  //   }
-  // }
+  function importWallet(password) {
+    const encryptedAccount = localStorage.getItem('account');
+    if (encryptedAccount) {
+      const decryptedAccount = decrypt(encryptedAccount, password);
+      if (decryptedAccount) {
+        const acc = JSON.parse(decryptedAccount);
+        setAccount(acc);
+        console.log(acc); // Log the imported account
+      } else {
+        setError("Incorrect password. Unable to decrypt the account.");
+      }
+    } else {
+      setError("No existing account found. Please create a new wallet.");
+    }
+  }
 
   async function getBalance() {
     try {
@@ -139,29 +166,29 @@ function App() {
       ) : (
         <div className="flex flex-col items-center space-y-4">
           <button 
-            onClick={createWallet} 
+            onClick={() => openPasswordModal('Create Wallet Password', 'create')} 
             className="px-6 py-3 bg-blue-600 text-white rounded-full font-semibold shadow-md hover:bg-blue-700 focus:outline-none"
           >
             Create Wallet
           </button>
           <div className="flex flex-col items-center">
-              <input 
-                  type="password" 
-                  placeholder="Enter Password" 
-                  value={password} 
-                  onChange={(e) => setPassword(e.target.value)} 
-                  className="px-4 py-2 mb-2 border border-gray-300 rounded-lg focus:outline-none"
-                />
+              
             <button 
-              // onClick={importWallet} 
-              // className={`px-6 py-3 ${privateKey  ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-400 cursor-not-allowed'} text-white rounded-full font-semibold shadow-md focus:outline-none`}
-              // disabled={!privateKey}
+              onClick={() => openPasswordModal('Import Wallet Password', 'import')} 
+              className="px-6 py-3 bg-green-600 text-white rounded-full font-semibold shadow-md hover:bg-green-700 focus:outline-none"
             >
               Import Wallet
             </button>
           </div>
           {error && <p className="mt-4 text-red-500">{error}</p>}
         </div>
+      )}
+      {isPasswordModalOpen && (
+        <PasswordModal 
+          onClose={closePasswordModal} 
+          onSubmit={handlePasswordSubmit} 
+          title={modalTitle} 
+        />
       )}
     </div>
   );
